@@ -1,2 +1,2 @@
-# ProjectVS
-Project Virtual Showcase
+# Project Virtual Showcase (PVS)
+
