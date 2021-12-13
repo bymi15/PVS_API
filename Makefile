@@ -1,3 +1,3 @@
 build:
-		mkdir	-p PVS_API/functions
+		mkdir	-p functions
 		GOBIN=${PWD}/functions go install ./PVS_API/functions/...
