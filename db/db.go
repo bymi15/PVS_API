@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/bymi15/PVS/PVS_API/db/services"
+	"github.com/bymi15/PVS_API/db/services"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )

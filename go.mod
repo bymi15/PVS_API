@@ -1,4 +1,4 @@
-module github.com/bymi15/PVS/PVS_API
+module github.com/bymi15/PVS_API
 
 go 1.17
 

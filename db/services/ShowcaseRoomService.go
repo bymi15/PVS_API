@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/bymi15/PVS/PVS_API/db/models"
+	"github.com/bymi15/PVS_API/db/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
