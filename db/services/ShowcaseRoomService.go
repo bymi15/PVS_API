@@ -64,17 +64,17 @@ func (service ShowcaseRoomService) GetShowcaseRoomById(id string) (models.Showca
 
 }
 
-func (service ShowcaseRoomService) CreateShowcaseRoom(ShowcaseRoom models.ShowcaseRoom) error {
+func (service ShowcaseRoomService) CreateShowcaseRoom(showcaseRoom models.ShowcaseRoom) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_, err := service.Collection.InsertOne(ctx, ShowcaseRoom)
+	_, err := service.Collection.InsertOne(ctx, showcaseRoom)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (service ShowcaseRoomService) UpdateShowcaseRoom(id string, ShowcaseRoom models.ShowcaseRoom) error {
+func (service ShowcaseRoomService) UpdateShowcaseRoom(id string, showcaseRoom models.ShowcaseRoom) error {
 	objectId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err
@@ -84,7 +84,7 @@ func (service ShowcaseRoomService) UpdateShowcaseRoom(id string, ShowcaseRoom mo
 	defer cancel()
 
 	var data bson.M
-	bytes, err := bson.Marshal(ShowcaseRoom)
+	bytes, err := bson.Marshal(showcaseRoom)
 	if err != nil {
 		return err
 	}
