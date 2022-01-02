@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/bymi15/PVS_API/db/models"
@@ -21,46 +22,86 @@ func NewShowcaseRoomService(db *mongo.Database, collectionName string) ShowcaseR
 
 }
 
-func (service ShowcaseRoomService) GetShowcaseRooms() ([]models.ShowcaseRoom, error) {
-	ShowcaseRooms := []models.ShowcaseRoom{}
+func (service ShowcaseRoomService) GetShowcaseRooms(showOnlyListed bool) ([]models.ShowcaseRoom, error) {
+	rooms := []models.ShowcaseRoom{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cursor, err := service.Collection.Find(ctx, bson.D{})
+	qry := bson.D{}
+	if showOnlyListed {
+		qry = bson.D{{"IsListed", true}}
+	}
+
+	cursor, err := service.Collection.Find(ctx, qry)
 	if err != nil {
 		defer cursor.Close(ctx)
-		return ShowcaseRooms, err
+		return rooms, err
 	}
 
 	for cursor.Next(ctx) {
-		ShowcaseRoom := models.NewShowcaseRoom()
-		err := cursor.Decode(&ShowcaseRoom)
+		room := models.NewShowcaseRoom()
+		err := cursor.Decode(&room)
 		if err != nil {
-			return ShowcaseRooms, err
+			return rooms, err
 		}
-		ShowcaseRooms = append(ShowcaseRooms, ShowcaseRoom)
+		rooms = append(rooms, room)
 	}
 
-	return ShowcaseRooms, nil
+	return rooms, nil
 }
 
-func (service ShowcaseRoomService) GetShowcaseRoomById(id string) (models.ShowcaseRoom, error) {
-	ShowcaseRoom := models.NewShowcaseRoom()
+func (service ShowcaseRoomService) GetShowcaseRoomsByUser(userId string) ([]models.ShowcaseRoom, error) {
+	rooms := []models.ShowcaseRoom{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	qry := []bson.M{
+		{
+			"$match": bson.M{
+				"userId": userId,
+			},
+		},
+	}
+
+	cursor, err := service.Collection.Find(ctx, qry)
+	if err != nil {
+		defer cursor.Close(ctx)
+		return rooms, err
+	}
+
+	for cursor.Next(ctx) {
+		room := models.NewShowcaseRoom()
+		err := cursor.Decode(&room)
+		if err != nil {
+			return rooms, err
+		}
+		rooms = append(rooms, room)
+	}
+
+	return rooms, nil
+}
+
+func (service ShowcaseRoomService) GetShowcaseRoomById(id, authUserId string) (*models.ShowcaseRoom, error) {
+	room := models.NewShowcaseRoom()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	objectId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return ShowcaseRoom, err
+		return &room, err
 	}
 
-	err = service.Collection.FindOne(ctx, bson.D{{"_id", objectId}}).Decode(&ShowcaseRoom)
+	err = service.Collection.FindOne(ctx, bson.D{{"_id", objectId}}).Decode(&room)
 	if err != nil {
-		return ShowcaseRoom, err
+		return &room, err
 	}
-	return ShowcaseRoom, nil
+	if authUserId != "" && !*room.IsListed && *room.CreatedBy.UserId != authUserId {
+		return nil, errors.New("forbidden access")
+	}
+	return &room, nil
 
 }
 
@@ -74,7 +115,7 @@ func (service ShowcaseRoomService) CreateShowcaseRoom(showcaseRoom models.Showca
 	return nil
 }
 
-func (service ShowcaseRoomService) UpdateShowcaseRoom(id string, showcaseRoom models.ShowcaseRoom) error {
+func (service ShowcaseRoomService) UpdateShowcaseRoom(id, authUserId string, showcaseRoom models.ShowcaseRoom) error {
 	objectId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err
@@ -92,6 +133,16 @@ func (service ShowcaseRoomService) UpdateShowcaseRoom(id string, showcaseRoom mo
 	if err != nil {
 		return err
 	}
+
+	room := models.NewShowcaseRoom()
+	err = service.Collection.FindOne(ctx, bson.D{{"_id", objectId}}).Decode(&room)
+	if err != nil {
+		return err
+	}
+	if authUserId != "" && *room.CreatedBy.UserId != authUserId {
+		return errors.New("forbidden access")
+	}
+
 	_, err = service.Collection.UpdateOne(
 		ctx,
 		bson.D{{"_id", objectId}},
@@ -100,7 +151,9 @@ func (service ShowcaseRoomService) UpdateShowcaseRoom(id string, showcaseRoom mo
 	return err
 }
 
-func (service ShowcaseRoomService) DeleteShowcaseRoom(id string) error {
+func (service ShowcaseRoomService) DeleteShowcaseRoom(id, authUserId string) error {
+	room := models.NewShowcaseRoom()
+
 	objectId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err
@@ -109,6 +162,13 @@ func (service ShowcaseRoomService) DeleteShowcaseRoom(id string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	err = service.Collection.FindOne(ctx, bson.D{{"_id", objectId}}).Decode(&room)
+	if err != nil {
+		return err
+	}
+	if authUserId != "" && *room.CreatedBy.UserId != authUserId {
+		return errors.New("forbidden access")
+	}
 	_, err = service.Collection.DeleteOne(ctx, bson.D{{"_id", objectId}})
 	if err != nil {
 		return err

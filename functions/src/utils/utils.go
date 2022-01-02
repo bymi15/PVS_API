@@ -10,6 +10,7 @@ import (
 
 	"github.com/apex/gateway"
 	"github.com/aws/aws-lambda-go/lambdacontext"
+	"github.com/bymi15/PVS_API/db"
 	"github.com/joho/godotenv"
 )
 
@@ -26,10 +27,12 @@ type Identity struct {
 }
 
 type User struct {
+	Id           string        `json:"id"`
 	AppMetaData  *AppMetaData  `json:"app_metadata"`
 	Email        string        `json:"email"`
 	Exp          int           `json:"exp"`
 	Sub          string        `json:"sub"`
+	Role         string        `json:"role"`
 	UserMetadata *UserMetadata `json:"user_metadata"`
 }
 type AppMetaData struct {
@@ -82,30 +85,71 @@ func ServeFunction(url string, handler func(http.ResponseWriter, *http.Request))
 		listener = http.ListenAndServe
 		http.Handle("/", http.FileServer(http.Dir("./public")))
 	}
-	http.HandleFunc(url, AuthMiddleware(handler))
+	http.HandleFunc(url, handler)
 
 	log.Printf("Function `%s` running on %s...", url, addr)
 	log.Fatal(listener(addr, nil))
 }
 
-func AuthMiddleware(h func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+func ParseRoleLevel(role string) int {
+	if role == "member" {
+		return 1
+	} else if role == "staff" {
+		return 2
+	} else if role == "admin" {
+		return 3
+	}
+	return 0
+}
+
+func GetAuthUser(w http.ResponseWriter, r *http.Request) *User {
+	lc, ok := lambdacontext.FromContext(r.Context())
+	if !ok {
+		log.Printf("error retrieving context %+v", r.Context())
+		return nil
+	}
+	identityResponse := lc.ClientContext.Custom["netlify"]
+	raw, _ := base64.StdEncoding.DecodeString(identityResponse)
+	data := IdentityResponse{}
+	_ = json.Unmarshal(raw, &data)
+	if data.User == nil {
+		log.Printf("forbidden access for request bearer %+v", identityResponse)
+	}
+	return data.User
+}
+
+func CheckUserHasPermission(role string, user *User) bool {
+	if user == nil || ParseRoleLevel(role) < ParseRoleLevel(user.Role) {
+		log.Fatalf("forbidden access for request bearer %+v", user)
+		return false
+	}
+	log.Printf("User '%s' has access.", user.UserMetadata.FullName)
+	return true
+}
+
+func CrudHandler(
+	getHandler func(db.MongoDbClient, *User, http.ResponseWriter, *http.Request),
+	createHandler func(db.MongoDbClient, *User, http.ResponseWriter, *http.Request),
+	updateHandler func(db.MongoDbClient, *User, http.ResponseWriter, *http.Request),
+	deleteHandler func(db.MongoDbClient, *User, http.ResponseWriter, *http.Request),
+) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		lc, ok := lambdacontext.FromContext(r.Context())
-		if !ok {
-			log.Fatalf("error retrieving context %+v", r.Context())
+		log.Print("Crud Handler called...")
+		client := db.InitMongoClient()
+		SetDefaultHeaders(w)
+		authUser := GetAuthUser(w, r)
+
+		switch r.Method {
+		case "GET":
+			getHandler(client, authUser, w, r)
+		case "POST":
+			createHandler(client, authUser, w, r)
+		case "PUT":
+			updateHandler(client, authUser, w, r)
+		case "DELETE":
+			deleteHandler(client, authUser, w, r)
+		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
 		}
-		identityResponse := lc.ClientContext.Custom["netlify"]
-		raw, _ := base64.StdEncoding.DecodeString(identityResponse)
-		data := IdentityResponse{}
-		_ = json.Unmarshal(raw, &data)
-		if data.User == nil {
-			log.Fatalf("forbidden access for request bearer %+v", identityResponse)
-			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-			return
-		}
-		log.Printf("User '%s' has been successfully authenticated.", data.User.UserMetadata.FullName)
-		h(w, r)
 	}
 }
