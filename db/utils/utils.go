@@ -70,9 +70,9 @@ func GetAuthUser(w http.ResponseWriter, r *http.Request) *User {
 	raw, _ := base64.StdEncoding.DecodeString(bearer)
 	data := IdentityResponse{}
 	_ = json.Unmarshal(raw, &data)
-	log.Printf("authuser data %+v, identity %+v", data, data.Identity)
+	log.Printf("authuser data %+v, identity %+v", data.User, data.Identity)
 	if data.User == nil {
-		log.Printf("forbidden access for request bearer %+v", bearer)
+		log.Printf("authuser not found for request bearer %+v", bearer)
 	}
 	return data.User
 }
