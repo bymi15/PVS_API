@@ -5,12 +5,19 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bymi15/PVS_API/db"
 	"github.com/bymi15/PVS_API/db/models"
-	"github.com/bymi15/PVS_API/functions/src/utils"
+	"github.com/bymi15/PVS_API/db/permissions"
+	"github.com/bymi15/PVS_API/db/services"
+	"github.com/bymi15/PVS_API/db/utils"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func getHandler(client db.MongoDbClient, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
+func getShowcaseRoomService(db *mongo.Database) services.ShowcaseRoomService {
+	return services.NewShowcaseRoomService(db, "showcaseRoom")
+}
+
+func getHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
+	service := getShowcaseRoomService(db)
 	id := r.URL.Query().Get("id")
 	userIdParam := r.URL.Query().Get("userId")
 	showAll := r.URL.Query().Get("showAll")
@@ -23,7 +30,7 @@ func getHandler(client db.MongoDbClient, authUser *utils.User, w http.ResponseWr
 
 	if id != "" {
 		// Get room by id (public listed room or created by user requested)
-		showcaseRoom, err := client.ShowcaseRoomService.GetShowcaseRoomById(id, userId)
+		showcaseRoom, err := service.GetShowcaseRoomById(id, userId)
 		if err != nil || showcaseRoom == nil {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
@@ -35,7 +42,7 @@ func getHandler(client db.MongoDbClient, authUser *utils.User, w http.ResponseWr
 	} else if userIdParam != "" {
 		// Get rooms by auth user
 		if userId != "" {
-			showcaseRooms, err := client.ShowcaseRoomService.GetShowcaseRoomsByUser(userId)
+			showcaseRooms, err := service.GetShowcaseRoomsByUser(userId)
 			if err != nil {
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
@@ -49,14 +56,14 @@ func getHandler(client db.MongoDbClient, authUser *utils.User, w http.ResponseWr
 	} else {
 		showOnlyListed := true
 		if showAll == "true" {
-			if utils.CheckUserHasPermission("staff", authUser) {
+			if permissions.CheckUserHasPermission("staff", authUser) {
 				showOnlyListed = false
 			} else {
 				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 			}
 		} else {
 			// Get all public rooms
-			showcaseRooms, err := client.ShowcaseRoomService.GetShowcaseRooms(showOnlyListed)
+			showcaseRooms, err := service.GetShowcaseRooms(showOnlyListed)
 			if err != nil {
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
@@ -68,8 +75,9 @@ func getHandler(client db.MongoDbClient, authUser *utils.User, w http.ResponseWr
 	}
 }
 
-func createHandler(client db.MongoDbClient, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
-	if authUser == nil || !utils.CheckUserHasPermission("member", authUser) {
+func createHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
+	service := getShowcaseRoomService(db)
+	if authUser == nil || !permissions.CheckUserHasPermission("member", authUser) {
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 	}
 
@@ -89,7 +97,7 @@ func createHandler(client db.MongoDbClient, authUser *utils.User, w http.Respons
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	err = client.ShowcaseRoomService.CreateShowcaseRoom(showcaseRoom)
+	err = service.CreateShowcaseRoom(showcaseRoom)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
@@ -99,8 +107,9 @@ func createHandler(client db.MongoDbClient, authUser *utils.User, w http.Respons
 	w.Write(response)
 }
 
-func updateHandler(client db.MongoDbClient, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
-	if authUser == nil || !utils.CheckUserHasPermission("member", authUser) {
+func updateHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
+	service := getShowcaseRoomService(db)
+	if authUser == nil || !permissions.CheckUserHasPermission("member", authUser) {
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 	}
 
@@ -116,10 +125,10 @@ func updateHandler(client db.MongoDbClient, authUser *utils.User, w http.Respons
 
 	userId := ""
 	// members can only update their own showcase room (staff, admin can update any)
-	if !utils.CheckUserHasPermission("staff", authUser) {
+	if !permissions.CheckUserHasPermission("staff", authUser) {
 		userId = authUser.Id
 	}
-	err = client.ShowcaseRoomService.UpdateShowcaseRoom(id, userId, showcaseRoom)
+	err = service.UpdateShowcaseRoom(id, userId, showcaseRoom)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
@@ -129,8 +138,9 @@ func updateHandler(client db.MongoDbClient, authUser *utils.User, w http.Respons
 	w.Write(response)
 }
 
-func deleteHandler(client db.MongoDbClient, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
-	if authUser == nil || !utils.CheckUserHasPermission("member", authUser) {
+func deleteHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
+	service := getShowcaseRoomService(db)
+	if authUser == nil || !permissions.CheckUserHasPermission("member", authUser) {
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 	}
 
@@ -139,11 +149,11 @@ func deleteHandler(client db.MongoDbClient, authUser *utils.User, w http.Respons
 
 	userId := ""
 	// members can only delete their own showcase room ( admin can delete any)
-	if !utils.CheckUserHasPermission("admin", authUser) {
+	if !permissions.CheckUserHasPermission("admin", authUser) {
 		userId = authUser.Id
 	}
 
-	err := client.ShowcaseRoomService.DeleteShowcaseRoom(id, userId)
+	err := service.DeleteShowcaseRoom(id, userId)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return

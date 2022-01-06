@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/bymi15/PVS_API/db/models"
+	"github.com/bymi15/PVS_API/db/permissions"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -68,14 +69,14 @@ func (service ShowcaseRoomService) GetShowcaseRoomsByUser(userId string) ([]mode
 	cursor, err := service.Collection.Find(ctx, qry)
 	if err != nil {
 		defer cursor.Close(ctx)
-		return rooms, err
+		return nil, err
 	}
 
 	for cursor.Next(ctx) {
 		room := models.NewShowcaseRoom()
 		err := cursor.Decode(&room)
 		if err != nil {
-			return rooms, err
+			return nil, err
 		}
 		rooms = append(rooms, room)
 	}
@@ -91,14 +92,14 @@ func (service ShowcaseRoomService) GetShowcaseRoomById(id, authUserId string) (*
 
 	objectId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return &room, err
+		return nil, err
 	}
 
 	err = service.Collection.FindOne(ctx, bson.D{{"_id", objectId}}).Decode(&room)
 	if err != nil {
-		return &room, err
+		return nil, err
 	}
-	if authUserId != "" && !*room.IsListed && *room.CreatedBy.UserId != authUserId {
+	if !permissions.IsRoomPublicOrOwner(authUserId, room) {
 		return nil, errors.New("forbidden access")
 	}
 	return &room, nil
@@ -139,7 +140,7 @@ func (service ShowcaseRoomService) UpdateShowcaseRoom(id, authUserId string, sho
 	if err != nil {
 		return err
 	}
-	if authUserId != "" && *room.CreatedBy.UserId != authUserId {
+	if !permissions.IsRoomOwner(authUserId, room) {
 		return errors.New("forbidden access")
 	}
 
@@ -166,7 +167,7 @@ func (service ShowcaseRoomService) DeleteShowcaseRoom(id, authUserId string) err
 	if err != nil {
 		return err
 	}
-	if authUserId != "" && *room.CreatedBy.UserId != authUserId {
+	if !permissions.IsRoomOwner(authUserId, room) {
 		return errors.New("forbidden access")
 	}
 	_, err = service.Collection.DeleteOne(ctx, bson.D{{"_id", objectId}})

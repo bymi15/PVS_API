@@ -10,42 +10,10 @@ import (
 
 	"github.com/apex/gateway"
 	"github.com/aws/aws-lambda-go/lambdacontext"
-	"github.com/bymi15/PVS_API/db"
+	"github.com/bymi15/PVS_API/db/session"
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/mongo"
 )
-
-type IdentityResponse struct {
-	Identity *Identity `json:"identity"`
-	User     *User     `json:"user"`
-	SiteUrl  string    `json:"site_url"`
-	Alg      string    `json:"alg"`
-}
-
-type Identity struct {
-	URL   string `json:"url"`
-	Token string `json:"token"`
-}
-
-type User struct {
-	Id           string        `json:"id"`
-	AppMetaData  *AppMetaData  `json:"app_metadata"`
-	Email        string        `json:"email"`
-	Exp          int           `json:"exp"`
-	Sub          string        `json:"sub"`
-	Role         string        `json:"role"`
-	UserMetadata *UserMetadata `json:"user_metadata"`
-}
-type AppMetaData struct {
-	Provider string `json:"provider"`
-}
-type UserMetadata struct {
-	FullName string `json:"full_name"`
-}
-
-type Response struct {
-	Msg              string `json:"msg"`
-	IdentityResponse string `json:"identity_response"`
-}
 
 func SetDefaultHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
@@ -91,17 +59,6 @@ func ServeFunction(url string, handler func(http.ResponseWriter, *http.Request))
 	log.Fatal(listener(addr, nil))
 }
 
-func ParseRoleLevel(role string) int {
-	if role == "member" {
-		return 1
-	} else if role == "staff" {
-		return 2
-	} else if role == "admin" {
-		return 3
-	}
-	return 0
-}
-
 func GetAuthUser(w http.ResponseWriter, r *http.Request) *User {
 	lc, ok := lambdacontext.FromContext(r.Context())
 	if !ok {
@@ -118,36 +75,27 @@ func GetAuthUser(w http.ResponseWriter, r *http.Request) *User {
 	return data.User
 }
 
-func CheckUserHasPermission(role string, user *User) bool {
-	if user == nil || ParseRoleLevel(role) < ParseRoleLevel(user.Role) {
-		log.Fatalf("forbidden access for request bearer %+v", user)
-		return false
-	}
-	log.Printf("User '%s' has access.", user.UserMetadata.FullName)
-	return true
-}
-
 func CrudHandler(
-	getHandler func(db.MongoDbClient, *User, http.ResponseWriter, *http.Request),
-	createHandler func(db.MongoDbClient, *User, http.ResponseWriter, *http.Request),
-	updateHandler func(db.MongoDbClient, *User, http.ResponseWriter, *http.Request),
-	deleteHandler func(db.MongoDbClient, *User, http.ResponseWriter, *http.Request),
+	getHandler func(*mongo.Database, *User, http.ResponseWriter, *http.Request),
+	createHandler func(*mongo.Database, *User, http.ResponseWriter, *http.Request),
+	updateHandler func(*mongo.Database, *User, http.ResponseWriter, *http.Request),
+	deleteHandler func(*mongo.Database, *User, http.ResponseWriter, *http.Request),
 ) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Print("Crud Handler called...")
-		client := db.InitMongoClient()
+		db := session.InitDbSession()
 		SetDefaultHeaders(w)
 		authUser := GetAuthUser(w, r)
 
 		switch r.Method {
 		case "GET":
-			getHandler(client, authUser, w, r)
+			getHandler(db, authUser, w, r)
 		case "POST":
-			createHandler(client, authUser, w, r)
+			createHandler(db, authUser, w, r)
 		case "PUT":
-			updateHandler(client, authUser, w, r)
+			updateHandler(db, authUser, w, r)
 		case "DELETE":
-			deleteHandler(client, authUser, w, r)
+			deleteHandler(db, authUser, w, r)
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
