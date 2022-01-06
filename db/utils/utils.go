@@ -66,13 +66,13 @@ func GetAuthUser(w http.ResponseWriter, r *http.Request) *User {
 		log.Printf("error retrieving context %+v", r.Context())
 		return nil
 	}
-	identityResponse := lc.ClientContext.Custom["netlify"]
-	raw, _ := base64.StdEncoding.DecodeString(identityResponse)
+	bearer := lc.ClientContext.Custom["netlify"]
+	raw, _ := base64.StdEncoding.DecodeString(bearer)
 	data := IdentityResponse{}
 	_ = json.Unmarshal(raw, &data)
-	log.Printf("authuser data %+v", data)
+	log.Printf("authuser data %+v, identity %+v", data, data.Identity)
 	if data.User == nil {
-		log.Printf("forbidden access for request bearer %+v", identityResponse)
+		log.Printf("forbidden access for request bearer %+v", bearer)
 	}
 	return data.User
 }

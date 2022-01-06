@@ -4,7 +4,6 @@ type IdentityResponse struct {
 	Identity *Identity `json:"identity"`
 	User     *User     `json:"user"`
 	SiteUrl  string    `json:"site_url"`
-	Alg      string    `json:"alg"`
 }
 
 type Identity struct {

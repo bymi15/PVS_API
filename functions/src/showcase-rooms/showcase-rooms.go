@@ -72,6 +72,7 @@ func getHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter,
 			} else {
 				log.Printf("Forbidden authuser")
 				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+				return
 			}
 		} else {
 			// Get all public rooms
@@ -93,6 +94,7 @@ func createHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWrit
 	if authUser == nil || !permissions.CheckUserHasPermission("member", authUser) {
 		log.Print("Forbidden authuser")
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		return
 	}
 
 	var response []byte
@@ -127,6 +129,7 @@ func updateHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWrit
 	if authUser == nil || !permissions.CheckUserHasPermission("member", authUser) {
 		log.Print("Forbidden authuser")
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		return
 	}
 
 	id := r.URL.Query().Get("id")
@@ -160,6 +163,7 @@ func deleteHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWrit
 	if authUser == nil || !permissions.CheckUserHasPermission("member", authUser) {
 		log.Print("Forbidden authuser")
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		return
 	}
 
 	id := r.URL.Query().Get("id")
