@@ -31,7 +31,12 @@ func getHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter,
 	if id != "" {
 		// Get room by id (public listed room or created by user requested)
 		showcaseRoom, err := service.GetShowcaseRoomById(id, userId)
-		if err != nil || showcaseRoom == nil {
+		if showcaseRoom == nil || err == mongo.ErrNoDocuments {
+			log.Printf("GetShowcaseRoomById not found, %s", err.Error())
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			return
+		} else if err != nil {
+			log.Printf("GetShowcaseRoomById err: %s", err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -43,7 +48,12 @@ func getHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter,
 		// Get rooms by auth user
 		if userId != "" {
 			showcaseRooms, err := service.GetShowcaseRoomsByUser(userId)
-			if err != nil {
+			if showcaseRooms == nil || err == mongo.ErrNoDocuments {
+				log.Printf("GetShowcaseRoomsByUser not found, %s", err.Error())
+				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+				return
+			} else if err != nil {
+				log.Printf("GetShowcaseRoomsByUser err: %s", err.Error())
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
@@ -59,12 +69,14 @@ func getHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter,
 			if permissions.CheckUserHasPermission("staff", authUser) {
 				showOnlyListed = false
 			} else {
+				log.Printf("Forbidden authuser: %v", authUser)
 				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 			}
 		} else {
 			// Get all public rooms
 			showcaseRooms, err := service.GetShowcaseRooms(showOnlyListed)
 			if err != nil {
+				log.Printf("GetShowcaseRooms err: %s", err.Error())
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
@@ -78,6 +90,7 @@ func getHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter,
 func createHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
 	service := getShowcaseRoomService(db)
 	if authUser == nil || !permissions.CheckUserHasPermission("member", authUser) {
+		log.Printf("Forbidden authuser: %v", authUser)
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 	}
 
@@ -93,12 +106,13 @@ func createHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWrit
 	}
 	err := utils.ParseRequestBody(r, &showcaseRoom)
 	if err != nil {
-		log.Printf("Error: %v", err)
+		log.Printf("ParseRequestBody err: %s", err.Error())
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	err = service.CreateShowcaseRoom(showcaseRoom)
 	if err != nil {
+		log.Printf("CreateShowcaseRoom err: %s", err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -110,6 +124,7 @@ func createHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWrit
 func updateHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
 	service := getShowcaseRoomService(db)
 	if authUser == nil || !permissions.CheckUserHasPermission("member", authUser) {
+		log.Printf("Forbidden authuser: %v", authUser)
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 	}
 
@@ -118,7 +133,7 @@ func updateHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWrit
 	var showcaseRoom models.ShowcaseRoom
 	err := utils.ParseRequestBody(r, &showcaseRoom)
 	if err != nil {
-		log.Printf("Error: %v", err)
+		log.Printf("ParseRequestBody err: %s", err.Error())
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -130,6 +145,7 @@ func updateHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWrit
 	}
 	err = service.UpdateShowcaseRoom(id, userId, showcaseRoom)
 	if err != nil {
+		log.Printf("UpdateShowcaseRoom err: %s", err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -141,6 +157,7 @@ func updateHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWrit
 func deleteHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
 	service := getShowcaseRoomService(db)
 	if authUser == nil || !permissions.CheckUserHasPermission("member", authUser) {
+		log.Printf("Forbidden authuser: %v", authUser)
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 	}
 
@@ -155,6 +172,7 @@ func deleteHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWrit
 
 	err := service.DeleteShowcaseRoom(id, userId)
 	if err != nil {
+		log.Printf("DeleteShowcaseRoom err: %s", err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
