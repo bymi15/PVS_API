@@ -31,7 +31,7 @@ func getHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter,
 	if id != "" {
 		// Get room by id (public listed room or created by user requested)
 		showcaseRoom, err := service.GetShowcaseRoomById(id, userId)
-		if showcaseRoom == nil || err == mongo.ErrNoDocuments {
+		if showcaseRoom == nil || (err != nil && err.Error() == mongo.ErrNoDocuments.Error()) {
 			log.Printf("GetShowcaseRoomById not found, %s", err.Error())
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
@@ -48,7 +48,7 @@ func getHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter,
 		// Get rooms by auth user
 		if userId != "" {
 			showcaseRooms, err := service.GetShowcaseRoomsByUser(userId)
-			if showcaseRooms == nil || err == mongo.ErrNoDocuments {
+			if showcaseRooms == nil || (err != nil && err.Error() == mongo.ErrNoDocuments.Error()) {
 				log.Printf("GetShowcaseRoomsByUser not found, %s", err.Error())
 				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 				return

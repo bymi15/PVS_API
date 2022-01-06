@@ -12,7 +12,7 @@ func IsRoomOwner(authUserId string, room models.ShowcaseRoom) bool {
 }
 
 func IsRoomPublicOrOwner(authUserId string, room models.ShowcaseRoom) bool {
-	return room.IsListed != nil && !*(room.IsListed) && IsRoomOwner(authUserId, room)
+	return (room.IsListed != nil && *(room.IsListed)) || IsRoomOwner(authUserId, room)
 }
 
 func ParseRoleLevel(role string) int {
