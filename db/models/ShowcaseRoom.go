@@ -38,13 +38,18 @@ type ShowcaseRoom struct {
 
 func NewShowcaseRoom() ShowcaseRoom {
 	instance := ShowcaseRoom{}
-	*instance.RoomName = "Showcase Room"
+	roomName := "Showcase Room"
+	dateCreated := time.Now().Format("2006-01-02")
+	isListed := true
+	sceneType := "Custom"
+	sceneSize := "md"
+	instance.RoomName = &roomName
 	instance.ProjectStands = []ProjectStand{}
-	*instance.DateCreated = time.Now().Format("2006-01-02")
-	*instance.IsListed = true
+	instance.DateCreated = &dateCreated
+	instance.IsListed = &isListed
 	scene := Scene{}
-	*scene.Type = "Custom"
-	*scene.Size = "md"
-	*instance.Scene = scene
+	scene.Type = &sceneType
+	scene.Size = &sceneSize
+	instance.Scene = &scene
 	return instance
 }
