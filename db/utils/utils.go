@@ -70,6 +70,7 @@ func GetAuthUser(w http.ResponseWriter, r *http.Request) *User {
 	raw, _ := base64.StdEncoding.DecodeString(identityResponse)
 	data := IdentityResponse{}
 	_ = json.Unmarshal(raw, &data)
+	log.Printf("authuser data %+v", data)
 	if data.User == nil {
 		log.Printf("forbidden access for request bearer %+v", identityResponse)
 	}

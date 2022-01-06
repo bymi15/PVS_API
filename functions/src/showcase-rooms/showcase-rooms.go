@@ -61,6 +61,7 @@ func getHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter,
 			response = utils.CreateApiResponse(showcaseRooms)
 			w.Write(response)
 		} else {
+			log.Print("Forbidden userId empty")
 			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		}
 	} else {
@@ -69,7 +70,7 @@ func getHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter,
 			if permissions.CheckUserHasPermission("staff", authUser) {
 				showOnlyListed = false
 			} else {
-				log.Printf("Forbidden authuser: %v", authUser)
+				log.Printf("Forbidden authuser")
 				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 			}
 		} else {
@@ -90,7 +91,7 @@ func getHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter,
 func createHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
 	service := getShowcaseRoomService(db)
 	if authUser == nil || !permissions.CheckUserHasPermission("member", authUser) {
-		log.Printf("Forbidden authuser: %v", authUser)
+		log.Print("Forbidden authuser")
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 	}
 
@@ -124,7 +125,7 @@ func createHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWrit
 func updateHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
 	service := getShowcaseRoomService(db)
 	if authUser == nil || !permissions.CheckUserHasPermission("member", authUser) {
-		log.Printf("Forbidden authuser: %v", authUser)
+		log.Print("Forbidden authuser")
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 	}
 
@@ -157,7 +158,7 @@ func updateHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWrit
 func deleteHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter, r *http.Request) {
 	service := getShowcaseRoomService(db)
 	if authUser == nil || !permissions.CheckUserHasPermission("member", authUser) {
-		log.Printf("Forbidden authuser: %v", authUser)
+		log.Print("Forbidden authuser")
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 	}
 
