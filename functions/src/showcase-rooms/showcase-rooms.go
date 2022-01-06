@@ -13,7 +13,7 @@ import (
 )
 
 func getShowcaseRoomService(db *mongo.Database) services.ShowcaseRoomService {
-	return services.NewShowcaseRoomService(db, "showcaseRoom")
+	return services.NewShowcaseRoomService(db)
 }
 
 func getHandler(db *mongo.Database, authUser *utils.User, w http.ResponseWriter, r *http.Request) {

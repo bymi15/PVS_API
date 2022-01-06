@@ -16,9 +16,9 @@ type ShowcaseRoomService struct {
 	Collection *mongo.Collection
 }
 
-func NewShowcaseRoomService(db *mongo.Database, collectionName string) ShowcaseRoomService {
+func NewShowcaseRoomService(db *mongo.Database) ShowcaseRoomService {
 	return ShowcaseRoomService{
-		Collection: db.Collection(collectionName),
+		Collection: db.Collection("showcaseRoom"),
 	}
 
 }
@@ -31,7 +31,7 @@ func (service ShowcaseRoomService) GetShowcaseRooms(showOnlyListed bool) ([]mode
 
 	qry := bson.D{}
 	if showOnlyListed {
-		qry = bson.D{{"IsListed", true}}
+		qry = bson.D{{"isListed", true}}
 	}
 
 	cursor, err := service.Collection.Find(ctx, qry)
