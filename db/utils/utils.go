@@ -16,10 +16,11 @@ import (
 )
 
 func SetDefaultHeaders(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+	header := w.Header()
+	header.Set("Content-Type", "application/json")
+	header.Set("Access-Control-Allow-Origin", "*")
+	header.Set("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
+	header.Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
 }
 
 func CreateApiResponse(v interface{}) []byte {
@@ -85,6 +86,10 @@ func CrudHandler(
 		log.Print("Crud Handler called...")
 		db := session.InitDbSession()
 		SetDefaultHeaders(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		authUser := GetAuthUser(w, r)
 
 		switch r.Method {
